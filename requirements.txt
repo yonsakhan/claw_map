@@ -1,0 +1,10 @@
+playwright
+pandas
+sqlalchemy
+pydantic
+fake-useragent
+langchain
+langchain-openai
+python-dotenv
+pymongo
+psycopg[binary]

@@ -1,0 +1,10 @@
+{"age_group": "Unknown", "location": "Shanghai", "fertility_status": "Parent-1-Child", "income_level": "Unknown", "spatial_preferences": ["Parks", "Schools", "Safety"], "fertility_intent_score": 3, "original_id": "user_0"}
+{"age_group": "Unknown", "location": "Guangzhou", "fertility_status": "Married-No-Kids", "income_level": "Unknown", "spatial_preferences": ["Unknown"], "fertility_intent_score": 5, "original_id": "user_1"}
+{"age_group": "Unknown", "location": "Shanghai", "fertility_status": "Parent-1-Child", "income_level": "Medium", "spatial_preferences": ["Hospitals", "Schools"], "fertility_intent_score": 3, "original_id": "user_2"}
+{"age_group": "Unknown", "location": "Shanghai", "fertility_status": "Married-No-Kids", "income_level": "Unknown", "spatial_preferences": ["Commute time"], "fertility_intent_score": 0, "original_id": "user_3"}
+{"age_group": "Unknown", "location": "Guangzhou", "fertility_status": "Unknown", "income_level": "Unknown", "spatial_preferences": ["Unknown"], "fertility_intent_score": 0, "original_id": "user_4"}
+{"age_group": "Unknown", "location": "Shanghai", "fertility_status": "Unknown", "income_level": "Unknown", "spatial_preferences": ["Unknown"], "fertility_intent_score": 0, "original_id": "user_5"}
+{"age_group": "Unknown", "location": "Beijing", "fertility_status": "Parent-1-Child", "income_level": "Unknown", "spatial_preferences": ["Unknown"], "fertility_intent_score": 0, "original_id": "user_6"}
+{"age_group": "Unknown", "location": "Shenzhen", "fertility_status": "Unknown", "income_level": "Unknown", "spatial_preferences": ["Unknown"], "fertility_intent_score": 0, "original_id": "user_7"}
+{"age_group": "Unknown", "location": "Shanghai", "fertility_status": "Unknown", "income_level": "Medium", "spatial_preferences": ["Commute time"], "fertility_intent_score": 0, "original_id": "user_8"}
+{"age_group": "Unknown", "location": "Guangzhou", "fertility_status": "Unknown", "income_level": "Unknown", "spatial_preferences": [], "fertility_intent_score": 0, "original_id": "user_9"}

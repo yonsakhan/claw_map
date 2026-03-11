@@ -1,0 +1,7 @@
+- [x] Project environment (Python, DB) is set up.
+- [x] Crawler can successfully fetch profiles and posts from Xiaohongshu (Sample run n=10).
+- [x] Database stores raw JSON data correctly.
+- [x] LLM Prompt reliably extracts "Fertility Stage" and "Location" from sample profiles.
+- [x] Batch processing script converts 10+ raw profiles into Structured Personas.
+- [x] "Virtual Interview" script runs and produces text responses from Agents.
+- [x] Basic statistical summary (CSV/Chart) is generated from the Agent data.
