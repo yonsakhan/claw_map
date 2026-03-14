@@ -21,3 +21,32 @@ Based on the above information, infer the following attributes. If an attribute 
 Output the result in valid JSON format only, with no markdown formatting. The JSON keys should be:
 "age_group", "location", "fertility_status", "income_level", "spatial_preferences" (list of strings), "fertility_intent_score" (int).
 """)
+
+ACCOUNT_FEATURE_QUESTIONNAIRE_PROMPT = ChatPromptTemplate.from_template("""
+You are an expert social science researcher for fertility-friendly urban planning.
+
+Account Feature Profile:
+{account_feature_profile_json}
+
+Questionnaire Context:
+{questionnaire_context_json}
+
+Model Parameters:
+{model_params_json}
+
+Generate one valid JSON object with these keys:
+- age_group (string)
+- location (string)
+- fertility_status (string)
+- income_level (string)
+- spatial_preferences (array of strings)
+- fertility_intent_score (integer 0-5)
+- questionnaire_answers (array of objects with question_id, question, answer, reason_summary, tendency_score, confidence)
+- reasoning_summary (string)
+
+Rules:
+1) Infer from feature clues and evidence snippets only.
+2) If uncertain, set value to "Unknown" and lower confidence.
+3) Keep answers concise and structured.
+4) Output valid JSON only without markdown.
+""")

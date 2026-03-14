@@ -8,3 +8,6 @@ langchain-openai
 python-dotenv
 pymongo
 psycopg[binary]
+
+pyyaml
+numpy

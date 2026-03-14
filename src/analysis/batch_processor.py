@@ -54,6 +54,13 @@ class BatchProcessor:
                                 income_level=persona.get("income_level"),
                                 spatial_preferences=persona.get("spatial_preferences", []),
                                 fertility_intent_score=persona.get("fertility_intent_score", 0),
+                                questionnaire_answers=persona.get("questionnaire_answers", []),
+                                reasoning_summary=persona.get("reasoning_summary"),
+                                prompt_version=persona.get("prompt_version"),
+                                questionnaire_version=persona.get("questionnaire_version"),
+                                model_params=persona.get("model_params"),
+                                feature_snapshot=persona.get("account_feature_profile"),
+                                evidence_references=persona.get("evidence_references", []),
                             )
                         )
                         processed_count += 1

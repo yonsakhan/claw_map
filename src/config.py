@@ -19,6 +19,7 @@ class Settings:
     openai_api_key = os.getenv("OPENAI_API_KEY")
     openai_api_base = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
     model_name = os.getenv("MODEL_NAME", "moonshot-v1-8k")  # Default to moonshot for Kimi key
+    xhs_cookie = os.getenv("XHS_COOKIE")
 
 
 settings = Settings()

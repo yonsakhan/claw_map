@@ -11,6 +11,7 @@ async def run_test():
     # 这是一个公开的小红书用户示例 URL
     # 如果遇到登录墙，请在浏览器中登录后获取 Cookie 或使用已登录的浏览器环境
     test_url = "https://www.xiaohongshu.com/user/profile/5b15392b4260905102559902" # 随便找的一个公开博主
+    test_url = test_url.strip().strip("`").strip("'").strip('"')
     
     print(f"--- 启动小红书爬虫测试 ---")
     print(f"目标 URL: {test_url}")
