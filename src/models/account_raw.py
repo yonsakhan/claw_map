@@ -106,6 +106,7 @@ def build_account_raw_document(
     likes = bundle.get("likes", []) or []
     favorites = bundle.get("favorites", []) or []
     follows = bundle.get("follows", []) or []
+    collections = bundle.get("collections", {}) or {}
     now_iso = _now_iso()
 
     window = bundle.get("collection_window", {}) or {}
@@ -146,12 +147,15 @@ def build_account_raw_document(
             "likes": likes,
             "favorites": favorites,
             "follows": follows,
+            "collections": collections,
         },
         "stats": {
             "posts_count": len(posts),
             "likes_count": len(likes),
             "favorites_count": len(favorites),
             "follows_count": len(follows),
+            "collections_folders_count": len((collections.get("folders") or [])) if isinstance(collections, dict) else 0,
+            "collections_items_count": len((collections.get("items") or [])) if isinstance(collections, dict) else 0,
         },
         "collection_log": collection_log,
         "source": source or bundle.get("source"),

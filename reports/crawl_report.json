@@ -1,0 +1,510 @@
+{
+  "task_status_counts": {
+    "dead": 1
+  },
+  "raw_documents_total": 51,
+  "avg_seconds_per_user": 74.84,
+  "estimated_users_per_hour": 48.1,
+  "sample_size": 20,
+  "sample_avg_missing_rate": 1.0,
+  "sample_missing_key_top": [
+    [
+      "profile.display_name",
+      20
+    ],
+    [
+      "profile.xhs_id",
+      20
+    ],
+    [
+      "profile.bio",
+      20
+    ],
+    [
+      "profile.follow_count",
+      20
+    ],
+    [
+      "profile.fans_count",
+      20
+    ],
+    [
+      "profile.likes_favorites_count",
+      20
+    ],
+    [
+      "profile.profile_url",
+      20
+    ],
+    [
+      "collections.folders",
+      20
+    ],
+    [
+      "collections.items",
+      20
+    ]
+  ],
+  "sample_records": [
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238386+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_1"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238406+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_2"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238411+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_3"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238416+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_4"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238420+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_5"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238425+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_6"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238467+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_7"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238478+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_8"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238483+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_9"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238487+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_10"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238491+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_11"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238494+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_12"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238498+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_13"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238501+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_14"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238505+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_15"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238508+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_16"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238512+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_17"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238518+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_18"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238522+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_19"
+    },
+    {
+      "schema_version": "v1",
+      "captured_at": "2026-03-19T16:23:42.238525+00:00",
+      "source_entry": "",
+      "profile": {},
+      "collections": {
+        "folders": [],
+        "items": []
+      },
+      "missing_rate": 1.0,
+      "missing_keys": [
+        "profile.display_name",
+        "profile.xhs_id",
+        "profile.bio",
+        "profile.follow_count",
+        "profile.fans_count",
+        "profile.likes_favorites_count",
+        "profile.profile_url",
+        "collections.folders",
+        "collections.items"
+      ],
+      "account_id": "user_20"
+    }
+  ]
+}

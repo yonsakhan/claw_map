@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from playwright.async_api import async_playwright, Page, BrowserContext
 from fake_useragent import UserAgent
 from src.config import settings
+from src.crawler.proxy_manager import ProxyManager
 
 # 配置日志
 logging.basicConfig(
@@ -32,12 +33,24 @@ class XiaohongshuScraper:
         self.max_fetch_retries = max_fetch_retries
         self.retry_backoff_seconds = retry_backoff_seconds
         self.cookie_string = self._normalize_cookie_string(cookie_string or settings.xhs_cookie)
+        self.proxy_manager = ProxyManager()
 
     async def _random_sleep(self, min_seconds: float = 1.0, max_seconds: float = 3.0):
         """模拟人类操作的随机等待时间。"""
         sleep_time = random.uniform(min_seconds, max_seconds)
         logger.debug(f"Sleeping for {sleep_time:.2f} seconds...")
         await asyncio.sleep(sleep_time)
+
+    async def _launch_browser(self, playwright):
+        proxy_server = await self.proxy_manager.get_random_proxy()
+        launch_kwargs: Dict[str, Any] = {
+            "headless": self.headless,
+            "args": ["--disable-blink-features=AutomationControlled"],
+        }
+        if proxy_server:
+            launch_kwargs["proxy"] = {"server": proxy_server}
+            logger.info(f"使用代理: {proxy_server}")
+        return await playwright.chromium.launch(**launch_kwargs)
 
     async def _get_random_user_agent(self) -> str:
         """获取随机 User-Agent。"""
@@ -152,7 +165,7 @@ class XiaohongshuScraper:
         手动登录并保存状态到本地文件。
         """
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)  # 本地运行必须开启界面用于扫码
+            browser = await p.chromium.launch(headless=False)  # 手动登录建议关闭代理以避免扫码异常
             context = await browser.new_context(
                 user_agent=await self._get_random_user_agent(),
                 viewport={'width': 1280, 'height': 800}
@@ -254,6 +267,7 @@ class XiaohongshuScraper:
         follow_match = re.search(r"(\d+)\s*关注", joined)
         fans_match = re.search(r"(\d+)\s*粉丝", joined)
         likes_match = re.search(r"(\d+)\s*获赞与收藏", joined)
+        note_count_match = re.search(r"笔记[・·\s]*([0-9]+)", joined)
         tabs = [tab for tab in ["关注", "笔记", "收藏"] if re.search(rf"(^|\s){tab}($|\s)", joined)]
         display_name = ""
         for line in lines:
@@ -294,6 +308,7 @@ class XiaohongshuScraper:
             "follow_count": int(follow_match.group(1)) if follow_match else 0,
             "fans_count": int(fans_match.group(1)) if fans_match else 0,
             "likes_favorites_count": int(likes_match.group(1)) if likes_match else 0,
+            "note_count": int(note_count_match.group(1)) if note_count_match else 0,
             "tabs": tabs,
         }
 
@@ -315,6 +330,7 @@ class XiaohongshuScraper:
                 "follow_count": parsed.get("follow_count", 0),
                 "fans_count": parsed.get("fans_count", 0),
                 "likes_favorites_count": parsed.get("likes_favorites_count", 0),
+                "note_count": parsed.get("note_count", 0),
             },
             "tabs": parsed.get("tabs", []),
         }
@@ -355,10 +371,7 @@ class XiaohongshuScraper:
 
     async def collect_accounts_from_explore(self, limit: int = 5) -> List[Dict[str, Any]]:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=self.headless,
-                args=['--disable-blink-features=AutomationControlled']
-            )
+            browser = await self._launch_browser(p)
             use_state = self._can_use_storage_state()
             storage_state = self.storage_state_path if use_state else None
             context = await browser.new_context(
@@ -388,15 +401,186 @@ class XiaohongshuScraper:
             finally:
                 await browser.close()
 
+    async def collect_accounts_from_search(self, search_url: str, limit: int = 200) -> List[str]:
+        async with async_playwright() as p:
+            browser = await self._launch_browser(p)
+            use_state = self._can_use_storage_state()
+            storage_state = self.storage_state_path if use_state else None
+            context = await browser.new_context(
+                storage_state=storage_state,
+                user_agent=await self._get_random_user_agent(),
+                viewport={'width': 1920, 'height': 1080},
+                locale='zh-CN'
+            )
+            if not use_state and self._has_cookie_string():
+                await self._apply_cookie_login(context)
+            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            page = await context.new_page()
+            try:
+                normalized_url = self._normalize_url(search_url)
+                await page.goto(normalized_url, wait_until="domcontentloaded", timeout=60000)
+                await self._random_sleep(2, 3)
+                if await self._check_login_block(page):
+                    return []
+                await self._click_search_user_tab(page)
+                urls = await self._scroll_collect_profile_urls(page, limit=limit)
+                return urls
+            finally:
+                await browser.close()
+
+    async def fetch_collections(self, profile_url: str) -> Dict[str, Any]:
+        async with async_playwright() as p:
+            browser = await self._launch_browser(p)
+            use_state = self._can_use_storage_state()
+            storage_state = self.storage_state_path if use_state else None
+            context = await browser.new_context(
+                storage_state=storage_state,
+                user_agent=await self._get_random_user_agent(),
+                viewport={'width': 1920, 'height': 1080},
+                locale='zh-CN'
+            )
+            if not use_state and self._has_cookie_string():
+                await self._apply_cookie_login(context)
+            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            page = await context.new_page()
+            try:
+                normalized_url = self._normalize_url(profile_url)
+                await page.goto(normalized_url, wait_until="domcontentloaded", timeout=60000)
+                await self._random_sleep(2, 3)
+                if await self._check_login_block(page):
+                    return {"folders": [], "items": [], "status": "blocked"}
+                await self._click_profile_collections_tab(page)
+                items = await self._collect_collection_items(page, limit=200)
+                return {"folders": [], "items": items, "status": "ok"}
+            finally:
+                await browser.close()
+
+    async def _click_search_user_tab(self, page: Page):
+        selectors = ["#user", "text=用户"]
+        for selector in selectors:
+            try:
+                locator = page.locator(selector).first
+                if await locator.count() > 0:
+                    await locator.click(timeout=3000)
+                    await self._random_sleep(1, 2)
+                    return
+            except Exception:
+                continue
+
+    async def _scroll_collect_profile_urls(self, page: Page, limit: int = 200) -> List[str]:
+        collected = []
+        seen = set()
+        prev_height = 0
+        for _ in range(2000):
+            if len(collected) >= limit:
+                break
+            urls = await self._extract_profile_urls_from_page(page)
+            for url in urls:
+                if url in seen:
+                    continue
+                seen.add(url)
+                collected.append(url)
+                if len(collected) >= limit:
+                    break
+            await page.evaluate("window.scrollBy(0, window.innerHeight)")
+            await self._random_sleep(1.2, 2.2)
+            new_height = await page.evaluate("document.body.scrollHeight")
+            if new_height == prev_height:
+                break
+            prev_height = new_height
+        return collected
+
+    async def _extract_profile_urls_from_page(self, page: Page) -> List[str]:
+        urls: List[str] = []
+        try:
+            anchors = await page.locator("a[href*='/user/profile/']").all()
+            for anchor in anchors:
+                href = await anchor.get_attribute("href")
+                if not href:
+                    continue
+                url = href if href.startswith("http") else f"https://www.xiaohongshu.com{href}"
+                url = self._normalize_url(url)
+                if "/user/profile/" in url:
+                    urls.append(url)
+        except Exception:
+            return []
+        return urls
+
+    async def _click_profile_collections_tab(self, page: Page):
+        candidates = ["text=收藏", "a:has-text('收藏')", "button:has-text('收藏')"]
+        for selector in candidates:
+            try:
+                locator = page.locator(selector).first
+                if await locator.count() > 0:
+                    await locator.click(timeout=3000)
+                    await self._random_sleep(1, 2)
+                    return
+            except Exception:
+                continue
+
+    async def _collect_collection_items(self, page: Page, limit: int = 200) -> List[Dict[str, Any]]:
+        items: List[Dict[str, Any]] = []
+        seen = set()
+        prev_height = 0
+        for _ in range(400):
+            if len(items) >= limit:
+                break
+            cards = await page.locator("section.note-item, section[class*='note-item']").all()
+            for card in cards:
+                if len(items) >= limit:
+                    break
+                try:
+                    cover = card.locator("a.cover").first
+                    href = await cover.get_attribute("href") if await cover.count() > 0 else None
+                    href = href or ""
+                    if href and not href.startswith("http"):
+                        href = f"https://www.xiaohongshu.com{href}"
+                    note_id, canonical_url = self._canonicalize_note_url(href)
+                    if not canonical_url or canonical_url in seen:
+                        continue
+                    seen.add(canonical_url)
+
+                    title = ""
+                    title_span = card.locator("a.title span").first
+                    if await title_span.count() > 0:
+                        title = await title_span.inner_text()
+                    author = ""
+                    author_span = card.locator(".author-wrapper span.name").first
+                    if await author_span.count() > 0:
+                        author = await author_span.inner_text()
+
+                    items.append(
+                        {
+                            "note_id": note_id,
+                            "url": canonical_url,
+                            "title": self._normalize_whitespace(title)[:200],
+                            "author": self._normalize_whitespace(author)[:80],
+                            "saved_at": None,
+                            "folder_name": None,
+                        }
+                    )
+                except Exception:
+                    continue
+            await page.evaluate("window.scrollBy(0, window.innerHeight)")
+            await self._random_sleep(1.2, 2.2)
+            new_height = await page.evaluate("document.body.scrollHeight")
+            if new_height == prev_height:
+                break
+            prev_height = new_height
+        if items:
+            return items
+        try:
+            html = await page.content()
+            return self._parse_collection_items_from_html(html)[:limit]
+        except Exception:
+            return items
+
     async def fetch_profile(self, url: str) -> Optional[Dict[str, Any]]:
         """获取小红书用户主页信息。"""
         async with async_playwright() as p:
             normalized_url = self._normalize_url(url)
             for attempt in range(self.max_fetch_retries + 1):
-                browser = await p.chromium.launch(
-                    headless=self.headless,
-                    args=['--disable-blink-features=AutomationControlled']
-                )
+                browser = await self._launch_browser(p)
                 use_state = self._can_use_storage_state()
                 storage_state = self.storage_state_path if use_state else None
                 if use_state:
@@ -523,6 +707,56 @@ class XiaohongshuScraper:
         if not path:
             return ""
         return path.split("/")[-1]
+
+    def _canonicalize_note_url(self, url: str) -> Tuple[str, str]:
+        normalized = self._normalize_url(url)
+        if not normalized:
+            return "", ""
+        parsed = urlparse(normalized)
+        path = parsed.path.strip("/")
+        parts = path.split("/") if path else []
+        note_id = ""
+        if "explore" in parts:
+            idx = parts.index("explore")
+            if idx + 1 < len(parts):
+                note_id = parts[idx + 1]
+        elif len(parts) >= 2 and parts[0] == "user" and parts[1] == "profile":
+            note_id = parts[-1]
+        if note_id:
+            return note_id, f"https://www.xiaohongshu.com/explore/{note_id}"
+        return "", normalized
+
+    def _parse_collection_items_from_html(self, html: str) -> List[Dict[str, Any]]:
+        items: List[Dict[str, Any]] = []
+        seen = set()
+        for match in re.finditer(r'<section[^>]*class="[^"]*note-item[^"]*"[\s\S]*?</section>', html or ""):
+            block = match.group(0)
+            href_match = re.search(r'href="([^"]+)"[^>]*xsec_source=pc_collect', block)
+            if not href_match:
+                href_match = re.search(r'href="([^"]+/explore/[^"]+)"', block)
+            href = href_match.group(1) if href_match else ""
+            if href and not href.startswith("http"):
+                href = f"https://www.xiaohongshu.com{href}"
+            note_id, canonical_url = self._canonicalize_note_url(href)
+            if not canonical_url or canonical_url in seen:
+                continue
+            seen.add(canonical_url)
+
+            title_match = re.search(r'<a[^>]*class="title"[^>]*>[\s\S]*?<span[^>]*>([^<]+)</span>', block)
+            title = self._normalize_whitespace(title_match.group(1)) if title_match else ""
+            author_match = re.search(r'<span[^>]*class="name"[^>]*>([^<]+)</span>', block)
+            author_name = self._normalize_whitespace(author_match.group(1)) if author_match else ""
+            items.append(
+                {
+                    "note_id": note_id,
+                    "url": canonical_url,
+                    "title": title[:200],
+                    "author": author_name[:80],
+                    "saved_at": None,
+                    "folder_name": None,
+                }
+            )
+        return items
 
 if __name__ == "__main__":
     # 示例用法

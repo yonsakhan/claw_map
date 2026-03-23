@@ -14,6 +14,7 @@ class Settings:
     mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
     mongo_db = os.getenv("MONGO_DB", "claw_map")
     mongo_raw_collection = os.getenv("MONGO_RAW_COLLECTION", "raw_profiles")
+    mongo_task_collection = os.getenv("MONGO_TASK_COLLECTION", "crawl_tasks")
 
     # LLM Config
     openai_api_key = os.getenv("OPENAI_API_KEY")

@@ -24,6 +24,7 @@ class AccountCollector:
         likes_loader: Optional[Callable[[], Awaitable[List[Dict[str, Any]]]]] = None,
         favorites_loader: Optional[Callable[[], Awaitable[List[Dict[str, Any]]]]] = None,
         follows_loader: Optional[Callable[[], Awaitable[List[Dict[str, Any]]]]] = None,
+        collections_loader: Optional[Callable[[], Awaitable[Dict[str, Any]]]] = None,
         source: Optional[str] = None,
     ) -> Dict[str, Any]:
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -40,6 +41,7 @@ class AccountCollector:
             "likes": [],
             "favorites": [],
             "follows": [],
+            "collections": {"folders": [], "items": []},
             "source": source or "account_collector",
         }
         failures: List[Dict[str, Any]] = []
@@ -87,6 +89,17 @@ class AccountCollector:
         bundle["follows"] = follows_payload or []
         bundle["collection_log"].append(
             {"dimension": "follows", "status": "success" if not follows_failure else "failed"}
+        )
+
+        collections_payload, collections_failure, collections_retry = await self._with_retry(
+            collections_loader or self._empty_collections_loader, "collections"
+        )
+        retry_count += collections_retry
+        if collections_failure:
+            failures.append(collections_failure)
+        bundle["collections"] = collections_payload or {"folders": [], "items": []}
+        bundle["collection_log"].append(
+            {"dimension": "collections", "status": "success" if not collections_failure else "failed"}
         )
 
         status = CollectionStatus.SUCCESS.value
@@ -140,6 +153,10 @@ class AccountCollector:
     async def _empty_dimension_loader(self) -> List[Dict[str, Any]]:
         await asyncio.sleep(self.throttle_seconds)
         return []
+
+    async def _empty_collections_loader(self) -> Dict[str, Any]:
+        await asyncio.sleep(self.throttle_seconds)
+        return {"folders": [], "items": []}
 
     def _classify_error(self, error: Optional[Exception]) -> str:
         if not error:

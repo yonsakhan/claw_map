@@ -70,6 +70,29 @@ class TestScraperRetryPolicy(unittest.TestCase):
         self.assertEqual(parsed["likes_favorites_count"], 5639)
         self.assertIn("笔记", parsed["tabs"])
 
+    def test_parse_profile_text_note_count(self):
+        raw_text = "笔记・2\n收藏\n"
+        scraper = XiaohongshuScraper()
+        parsed = scraper._parse_profile_text(raw_text)
+        self.assertEqual(parsed["note_count"], 2)
+
+    def test_parse_collection_items_html(self):
+        html = """
+        <div class="feeds-container static-layout">
+          <section class="note-item static-layout">
+            <a class="cover mask ld" href="/user/profile/66e8d3d8000000001d030c44/6985b5c1000000000d009494?xsec_source=pc_collect"></a>
+            <a class="title"><span>超详细‼️道医资格证～拿证全流程🔥</span></a>
+            <div class="author-wrapper"><span class="name">姚姚考证咨询</span></div>
+          </section>
+        </div>
+        """
+        scraper = XiaohongshuScraper()
+        items = scraper._parse_collection_items_from_html(html)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["note_id"], "6985b5c1000000000d009494")
+        self.assertEqual(items[0]["url"], "https://www.xiaohongshu.com/explore/6985b5c1000000000d009494")
+        self.assertEqual(items[0]["author"], "姚姚考证咨询")
+
 
 if __name__ == "__main__":
     unittest.main()

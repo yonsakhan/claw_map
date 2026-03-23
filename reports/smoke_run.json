@@ -1,0 +1,8 @@
+{
+  "task_status": "dead",
+  "task_error": "[{'dimension': 'profile', 'error_code': 'unknown', 'error_message': 'profile fetch returned None'}]",
+  "raw_status": "failed",
+  "raw_error": "profile fetch returned None",
+  "profile_keys": [],
+  "collections_items_count": 0
+}
