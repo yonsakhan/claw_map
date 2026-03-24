@@ -5,8 +5,8 @@ import multiprocessing as mp
 import os
 from typing import List
 
-from src.crawler.scheduler import CrawlScheduler, SeedConfig
-from src.crawler.worker import CrawlWorker, WorkerConfig
+from src.crawler.mongo_scheduler import CrawlScheduler, SeedConfig
+from src.crawler.mongo_worker import CrawlWorker, WorkerConfig
 from src.storage.crawl_task_store import CrawlTaskStore
 
 
@@ -76,4 +76,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

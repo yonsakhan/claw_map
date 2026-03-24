@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 
-from src.crawler.worker import CrawlWorker, WorkerConfig
+from src.crawler.mongo_worker import CrawlWorker, WorkerConfig
 from src.storage.crawl_task_store import CrawlTaskStore
 from src.storage.mongo_store import MongoRawStore
 
@@ -42,4 +42,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

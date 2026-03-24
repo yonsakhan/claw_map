@@ -74,14 +74,26 @@ class AccountFeatureBuilder:
         snippets = self._extract_text_snippets({}, posts, likes + favorites)
         vocab = {
             "通勤": "Commute",
+            "commute": "Commute",
             "地铁": "Transit",
+            "subway": "Transit",
+            "metro": "Transit",
+            "transit": "Transit",
             "公园": "Parks",
+            "park": "Parks",
+            "parks": "Parks",
             "医院": "Hospitals",
+            "hospital": "Hospitals",
+            "clinic": "Hospitals",
             "学校": "Schools",
+            "school": "Schools",
+            "kindergarten": "Schools",
             "安全": "Safety",
+            "safe": "Safety",
+            "safety": "Safety",
         }
         matched = []
-        corpus = " ".join(snippets)
+        corpus = " ".join(snippets).lower()
         for keyword, label in vocab.items():
             if keyword in corpus:
                 matched.append(label)
