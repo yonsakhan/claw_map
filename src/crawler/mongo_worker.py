@@ -64,7 +64,9 @@ class CrawlWorker:
         async def profile_loader():
             dimensions = await self.scraper.fetch_account_dimensions(url)
             if not dimensions:
-                raise RuntimeError("profile fetch returned None")
+                # 注意：这里经常是登录态失效/被登录弹窗拦截导致的空返回。
+                # 让错误信息包含 login/auth 关键字，便于 AccountCollector 归因（LOGIN_REQUIRED）。
+                raise RuntimeError("login/auth blocked: profile fetch returned None")
             return dimensions
 
         async def collections_loader():
@@ -97,4 +99,3 @@ class CrawlWorker:
             self.task_store.mark_failed(task_id, error=str(result.get("failures")), retryable=retryable)
         else:
             self.task_store.mark_success(task_id, meta=meta)
-

@@ -1,0 +1,17 @@
+mode: serial
+num_workers: 1
+headless: true
+throttle_seconds: 3.0
+max_tasks_per_run: 0
+
+postgres_url: ${POSTGRES_URL}
+mongo_url: ${MONGO_URL}
+
+proxy:
+  enabled: false
+  per_worker_env_prefix: PROXY_LIST_WORKER_
+
+seed:
+  explore_limit: 0
+  search_keywords: []
+  search_limit_per_keyword: 0

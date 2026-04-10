@@ -1,0 +1,33 @@
+.env
+*.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Local DB / artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+src/storage/xhs_state.json
+src/storage/*.json
+
+*.jsonl
+reports/
+data/
+
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+.idea/
+.vscode/
+*.iml
+
+venv/
+.venv/
+env/
