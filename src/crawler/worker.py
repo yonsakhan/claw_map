@@ -1,67 +1,13 @@
 import argparse
 import asyncio
 import logging
-import random
-from typing import Optional
+from typing import Dict, Optional
 
-from src.crawler.scheduler import Scheduler
-from src.crawler.xiaohongshu_scraper import XiaohongshuScraper
-from src.storage.mongo_store import MongoRawStore
+from src.crawler.mongo_worker import CrawlWorker, WorkerConfig
+from src.storage.crawl_task_store import CrawlTaskStore
 
 
 logger = logging.getLogger("Worker")
-
-
-class Worker:
-    def __init__(
-        self,
-        worker_id: str,
-        scheduler: Scheduler,
-        headless: bool = True,
-        throttle: float = 3.0,
-    ):
-        self.worker_id = worker_id
-        self.scheduler = scheduler
-        self.raw_store = MongoRawStore()
-        self.headless = headless
-        self.throttle = throttle
-
-    async def run(self, max_tasks: Optional[int] = None) -> int:
-        done = 0
-        while True:
-            if max_tasks is not None and done >= max_tasks:
-                break
-            task = await self.scheduler.acquire_task(self.worker_id)
-            if task is None:
-                break
-            ok, err = await self._process_task(task.url)
-            if ok:
-                self.scheduler.mark_success(task.id)
-            else:
-                self.scheduler.mark_failed(task.id, error=err)
-            done += 1
-            await asyncio.sleep(self.throttle + random.uniform(-0.5, 0.5))
-        return done
-
-    async def _process_task(self, url: str) -> tuple[bool, str]:
-        scraper = XiaohongshuScraper(headless=self.headless)
-        try:
-            payload = await scraper.fetch_account_dimensions(url)
-            if not payload:
-                return False, "empty payload"
-            collections = await scraper.fetch_collections(url)
-            payload["collections"] = collections
-            account_id = self.raw_store.upsert_profile_bundle(
-                bundle=payload,
-                collection_status="success",
-                source=self.worker_id,
-            )
-            if not account_id:
-                return False, "mongo upsert failed"
-            return True, ""
-        except Exception as exc:
-            return False, str(exc)
-
 
 async def run_serial(
     urls: list[str],
@@ -69,12 +15,51 @@ async def run_serial(
     throttle: float = 3.0,
     headless: bool = True,
 ):
-    scheduler = Scheduler()
-    scheduler.reset_running()
-    scheduler.seed_urls(urls)
-    worker = Worker(worker_id="worker_0", scheduler=scheduler, throttle=throttle, headless=headless)
-    processed = await worker.run(max_tasks=max_tasks)
-    return scheduler.stats(), processed
+    logger.warning("src.crawler.worker is a legacy entrypoint; delegating execution to CrawlWorker.")
+    task_store = CrawlTaskStore()
+    task_ids: list[str] = []
+    for url in urls:
+        normalized_url = str(url or "").strip()
+        if not normalized_url:
+            continue
+        enqueue_result = task_store.enqueue_url(
+            url=normalized_url,
+            payload={"source_entry": "legacy_worker"},
+            source_entry="legacy_worker",
+        )
+        task_id = str(enqueue_result.get("task_id", "")).strip()
+        if task_id and task_id not in task_ids:
+            task_ids.append(task_id)
+
+    if not task_ids:
+        return {}, 0
+
+    target_tasks = len(task_ids)
+    if max_tasks is not None:
+        target_tasks = min(target_tasks, int(max_tasks))
+
+    config = WorkerConfig(
+        worker_id="worker_0",
+        min_sleep_seconds=max(0.0, float(throttle) * 0.8),
+        max_sleep_seconds=max(0.0, float(throttle) * 1.2),
+        collector_throttle_seconds=max(0.0, float(throttle)),
+        max_tasks=target_tasks,
+        headless=bool(headless),
+    )
+    worker = CrawlWorker(config=config, task_store=task_store)
+    processed = await worker.run(stop_when_idle=True)
+    return _legacy_stats(task_store, task_ids), processed
+
+
+def _legacy_stats(task_store: CrawlTaskStore, task_ids: list[str]) -> Dict[str, int]:
+    rows = task_store.collection.find({"task_id": {"$in": list(task_ids)}}, {"status": 1, "_id": 0})
+    stats: Dict[str, int] = {}
+    for row in rows:
+        status = str(row.get("status") or "")
+        if not status:
+            continue
+        stats[status] = stats.get(status, 0) + 1
+    return stats
 
 
 def _parse_args() -> argparse.Namespace:

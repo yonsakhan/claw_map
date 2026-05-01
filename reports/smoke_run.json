@@ -1,8 +1,18 @@
 {
-  "task_status": "dead",
-  "task_error": "[{'dimension': 'profile', 'error_code': 'unknown', 'error_message': 'profile fetch returned None'}]",
-  "raw_status": "failed",
-  "raw_error": "profile fetch returned None",
-  "profile_keys": [],
+  "task_status": "success",
+  "task_error": null,
+  "raw_status": "success",
+  "raw_error": null,
+  "profile_keys": [
+    "bio",
+    "display_name",
+    "id",
+    "ip_location",
+    "location",
+    "profile_url",
+    "stats",
+    "tabs",
+    "xhs_id"
+  ],
   "collections_items_count": 0
 }

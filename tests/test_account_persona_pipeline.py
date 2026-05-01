@@ -4,7 +4,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.analysis.account_persona_pipeline import AccountPersonaPipeline
-from src.analysis.persona_extractor import PersonaExtractor
 from src.models.base import Base
 from src.storage.result_trace_store import ResultTraceStore
 
@@ -17,6 +16,45 @@ class FakeRawStore:
         if account_id == self.raw_document.get("account_id"):
             return self.raw_document
         return None
+
+
+class FakeExtractor:
+    def extract_persona_from_features(
+        self,
+        account_feature_profile,
+        questionnaire_context,
+        prompt_version="v2",
+        questionnaire_version="v1",
+        model_params=None,
+    ):
+        model_params = model_params or {"temperature": 0}
+        return {
+            "age_group": "25-29",
+            "location": "北京",
+            "fertility_status": "Trying",
+            "income_level": "Medium",
+            "spatial_preferences": ["Transit", "Schools"],
+            "fertility_intent_score": 3,
+            "questionnaire_answers": [
+                {
+                    "question_id": str(item.get("id")),
+                    "question": str(item.get("question")),
+                    "answer": "我会重点考虑通勤、托育和学区配套。",
+                    "reason_summary": "通勤与育儿设施是主要影响因素。",
+                    "tendency_score": 3,
+                    "confidence": 0.7,
+                }
+                for item in questionnaire_context
+            ],
+            "reasoning_summary": "基于 mock extractor 生成离线测试结果。",
+            "account_id": account_feature_profile.get("account_id", ""),
+            "account_feature_profile": account_feature_profile,
+            "prompt_version": prompt_version,
+            "questionnaire_version": questionnaire_version,
+            "model_params": model_params,
+            "evidence_references": account_feature_profile.get("evidence_references", []),
+            "is_mock": True,
+        }
 
 
 class TestAccountPersonaPipeline(unittest.TestCase):
@@ -45,7 +83,7 @@ class TestAccountPersonaPipeline(unittest.TestCase):
             raw_store=FakeRawStore(raw_document),
         )
         pipeline = AccountPersonaPipeline(
-            extractor=PersonaExtractor(api_key=None),
+            extractor=FakeExtractor(),
             trace_store=trace_store,
         )
         output = pipeline.run(
@@ -57,6 +95,7 @@ class TestAccountPersonaPipeline(unittest.TestCase):
         )
         result = output["result"]
         self.assertIn("questionnaire_answers", result)
+        self.assertTrue(result["is_mock"])
         self.assertEqual(result["prompt_version"], "v2.1")
         self.assertEqual(result["questionnaire_version"], "q-2026-03")
         trace = pipeline.query_result_trace(output["result_id"])

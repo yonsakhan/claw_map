@@ -13,8 +13,9 @@ class ResultTraceStore:
     def save_result(self, result: Dict[str, Any]) -> int:
         session = self.session_factory()
         try:
+            raw_account_id = str(result.get("original_id") or result.get("account_id") or "")
             row = AgentPersona(
-                original_id=str(result.get("account_id") or result.get("original_id") or ""),
+                original_id=raw_account_id,
                 age_group=result.get("age_group"),
                 location=result.get("location"),
                 fertility_status=result.get("fertility_status"),
@@ -42,7 +43,9 @@ class ResultTraceStore:
             row = session.query(AgentPersona).filter(AgentPersona.id == int(result_id)).one_or_none()
             if not row:
                 return None
-            raw_document = self.raw_store.get_by_account_id(row.original_id)
+            feature_snapshot = row.feature_snapshot or {}
+            raw_lookup_id = str(feature_snapshot.get("account_id") or row.original_id)
+            raw_document = self.raw_store.get_by_account_id(raw_lookup_id)
             return {
                 "result_id": row.id,
                 "account_id": row.original_id,
@@ -50,7 +53,7 @@ class ResultTraceStore:
                 "questionnaire_version": row.questionnaire_version,
                 "model_params": row.model_params,
                 "evidence_references": row.evidence_references or [],
-                "feature_snapshot": row.feature_snapshot or {},
+                "feature_snapshot": feature_snapshot,
                 "questionnaire_answers": row.questionnaire_answers or [],
                 "raw_document": raw_document,
             }

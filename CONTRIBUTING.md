@@ -40,9 +40,14 @@ pre-commit install
 pre-commit run -a
 ```
 
+## 脚本放置约定
+
+- 业务主链优先放在 `src/` 下，保持可导入、可测试。
+- 运维/维护类脚本优先放在 `scripts/` 下，并提供 `python -m scripts.<name>` 入口。
+- 根目录同名脚本若仍存在，应只保留兼容转发能力，不再承载新的核心实现。
+
 ## 不要提交的内容
 
 - 密钥与环境：`.env`、token/cookie、`src/storage/xhs_state.json`
 - 运行产物：`reports/`、`data/`、`*.jsonl`、`*.db`
 - IDE/系统文件：`.idea/`、`.vscode/`、`.DS_Store`
-

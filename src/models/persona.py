@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, JSON
 from .base import Base
 
@@ -21,4 +21,4 @@ class AgentPersona(Base):
     model_params = Column(JSON)
     feature_snapshot = Column(JSON)
     evidence_references = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

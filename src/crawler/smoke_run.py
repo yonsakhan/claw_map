@@ -11,11 +11,12 @@ async def main():
     os.makedirs("reports", exist_ok=True)
     url = "https://www.xiaohongshu.com/user/profile/5b15392b4260905102559902"
     task_store = CrawlTaskStore()
-    task_store.enqueue_url(
+    enqueue_result = task_store.enqueue_url(
         url=url,
         payload={"account_id": "5b15392b4260905102559902", "source_entry": "manual_smoke"},
         source_entry="manual_smoke",
         priority=10,
+        force=True,
     )
 
     raw_store = MongoRawStore()
@@ -24,9 +25,9 @@ async def main():
         task_store=task_store,
         raw_store=raw_store,
     )
-    await worker.run()
+    await worker.run(stop_when_idle=True)
 
-    task = task_store.collection.find_one({"url": url}) or {}
+    task = task_store.collection.find_one({"task_id": enqueue_result.get("task_id")}) or {}
     raw = raw_store.get_by_account_id("5b15392b4260905102559902") or {}
     out = {
         "task_status": task.get("status"),

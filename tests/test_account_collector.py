@@ -1,5 +1,6 @@
 import unittest
 
+from src.crawler.errors import LoginRequiredError
 from src.crawler.account_collector import AccountCollector
 from src.models.account_raw import CollectionErrorCode, CollectionStatus
 
@@ -47,5 +48,30 @@ class TestAccountCollector(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["collection_status"], CollectionStatus.PARTIAL.value)
         self.assertEqual(result["failures"][0]["error_code"], CollectionErrorCode.RATE_LIMITED.value)
         self.assertEqual(store.payload["account_id"], "u_1")
-        self.assertEqual(len(store.payload["collection_log"]), 4)
+        # profile_posts + likes + favorites + follows + collections
+        self.assertEqual(len(store.payload["collection_log"]), 5)
         self.assertEqual(store.kwargs["collection_status"], CollectionStatus.PARTIAL.value)
+
+    async def test_collect_login_required_marks_non_retryable_failure(self):
+        store = FakeRawStore()
+        collector = AccountCollector(raw_store=store, throttle_seconds=0, max_retries=1)
+
+        async def load_profile():
+            return {
+                "profile": {"id": "u_2", "bio": "记录生活"},
+                "posts": [{"id": "p1", "title": "通勤日常"}],
+            }
+
+        async def load_collections():
+            raise LoginRequiredError("login blocked: collections")
+
+        result = await collector.collect(
+            account_id="u_2",
+            profile_loader=load_profile,
+            collections_loader=load_collections,
+            source="unit_test",
+        )
+        self.assertEqual(result["collection_status"], CollectionStatus.PARTIAL.value)
+        self.assertFalse(result["retryable"])
+        self.assertEqual(result["failures"][0]["error_code"], CollectionErrorCode.LOGIN_REQUIRED.value)
+        self.assertFalse(store.kwargs["retryable"])

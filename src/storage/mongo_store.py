@@ -3,6 +3,15 @@ from src.config import settings
 from src.models.account_raw import build_account_raw_document
 
 
+STATUS_PRIORITY = {
+    "success": 4,
+    "partial": 3,
+    "failed": 2,
+    "running": 1,
+    "pending": 0,
+}
+
+
 class MongoRawStore:
     def __init__(self):
         self.client = MongoClient(settings.mongo_url)
@@ -37,12 +46,26 @@ class MongoRawStore:
             return None
 
         account_id = document["account_id"]
+        existing = self.collection.find_one({"account_id": account_id}) or {}
+        if existing and not self._should_replace(existing, document):
+            return account_id
         self.collection.update_one(
             {"account_id": account_id},
             {"$set": document},
             upsert=True,
         )
         return account_id
+
+    def _should_replace(self, existing: dict, incoming: dict) -> bool:
+        existing_priority = STATUS_PRIORITY.get(str(existing.get("collection_status")), -1)
+        incoming_priority = STATUS_PRIORITY.get(str(incoming.get("collection_status")), -1)
+        if incoming_priority != existing_priority:
+            return incoming_priority > existing_priority
+        return self._document_score(incoming) >= self._document_score(existing)
+
+    def _document_score(self, document: dict) -> int:
+        stats = document.get("stats", {}) or {}
+        return int(stats.get("posts_count", 0)) + int(stats.get("collections_items_count", 0))
 
     def count(self) -> int:
         return self.collection.count_documents({})

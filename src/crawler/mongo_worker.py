@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import random
+import time
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Optional
 
@@ -20,8 +22,12 @@ class WorkerConfig:
     lease_seconds: int = 180
     min_sleep_seconds: float = 1.2
     max_sleep_seconds: float = 3.5
+    collector_throttle_seconds: float = 0.4
     max_tasks: Optional[int] = None
     headless: bool = True
+    idle_timeout: float = 0.0
+    max_consecutive_failures: int = 5
+    skip_collections: bool = False
 
 
 class CrawlWorker:
@@ -34,26 +40,71 @@ class CrawlWorker:
         self.config = config
         self.task_store = task_store or CrawlTaskStore()
         self.raw_store = raw_store or MongoRawStore()
-        self.collector = AccountCollector(raw_store=self.raw_store, throttle_seconds=0.4, max_retries=2)
+        self.collector = AccountCollector(
+            raw_store=self.raw_store,
+            throttle_seconds=float(self.config.collector_throttle_seconds),
+            max_retries=2,
+        )
         self.scraper = XiaohongshuScraper(headless=config.headless)
 
-    async def run(self):
+    async def _lease_heartbeat(self, task_id: str):
+        interval = max(5.0, float(self.config.lease_seconds) / 3.0)
+        while True:
+            await asyncio.sleep(interval)
+            refreshed = self.task_store.refresh_lease(
+                task_id=task_id,
+                worker_id=self.config.worker_id,
+                lease_seconds=self.config.lease_seconds,
+            )
+            if not refreshed:
+                logger.warning("Task lease heartbeat lost for %s", task_id)
+                return
+
+    async def run(self, stop_when_idle: bool = False) -> int:
         processed = 0
+        consecutive_failures = 0
+        idle_since: Optional[float] = None
+        idle_timeout = float(self.config.idle_timeout or 0)
+        max_consecutive = int(self.config.max_consecutive_failures or 5)
         while True:
             if self.config.max_tasks is not None and processed >= int(self.config.max_tasks):
                 break
+            if consecutive_failures >= max_consecutive:
+                logger.warning("Worker %s hit %d consecutive failures, stopping",
+                               self.config.worker_id, consecutive_failures)
+                break
             task = self.task_store.lease_next(self.config.worker_id, lease_seconds=self.config.lease_seconds)
             if not task:
+                if stop_when_idle:
+                    break
+                if idle_timeout > 0:
+                    now = time.monotonic()
+                    if idle_since is None:
+                        idle_since = now
+                    elif now - idle_since >= idle_timeout:
+                        logger.info("Worker %s idle for %.0fs, exiting", self.config.worker_id, idle_timeout)
+                        break
                 await asyncio.sleep(2.0)
                 continue
+            idle_since = None
             try:
                 await self._process_task(task)
                 processed += 1
+                consecutive_failures = 0
                 await asyncio.sleep(random.uniform(self.config.min_sleep_seconds, self.config.max_sleep_seconds))
             except Exception as exc:
-                self.task_store.mark_failed(task.get("task_id", ""), error=str(exc), retryable=True)
+                consecutive_failures += 1
+                marked = self.task_store.mark_failed(
+                    task.get("task_id", ""),
+                    worker_id=self.config.worker_id,
+                    error=str(exc),
+                    retryable=True,
+                )
+                if not marked:
+                    logger.warning("Failed to mark task %s as failed after exception", task.get("task_id", ""))
                 await asyncio.sleep(random.uniform(2.0, 4.5))
         logger.info(f"Worker {self.config.worker_id} finished, processed={processed}")
+        return processed
 
     async def _process_task(self, task: dict):
         task_id = str(task.get("task_id", ""))
@@ -64,20 +115,27 @@ class CrawlWorker:
         async def profile_loader():
             dimensions = await self.scraper.fetch_account_dimensions(url)
             if not dimensions:
-                # 注意：这里经常是登录态失效/被登录弹窗拦截导致的空返回。
-                # 让错误信息包含 login/auth 关键字，便于 AccountCollector 归因（LOGIN_REQUIRED）。
-                raise RuntimeError("login/auth blocked: profile fetch returned None")
+                raise RuntimeError("profile fetch returned None")
             return dimensions
 
-        async def collections_loader():
-            return await self.scraper.fetch_collections(url)
+        collections_loader = None
+        if not self.config.skip_collections:
+            async def _collections_loader():
+                return await self.scraper.fetch_collections(url)
+            collections_loader = _collections_loader
 
-        result = await self.collector.collect(
-            account_id=payload.get("account_id") or url,
-            profile_loader=profile_loader,
-            collections_loader=collections_loader,
-            source=source_entry or "crawl_worker",
-        )
+        heartbeat = asyncio.create_task(self._lease_heartbeat(task_id))
+        try:
+            result = await self.collector.collect(
+                account_id=payload.get("account_id") or url,
+                profile_loader=profile_loader,
+                collections_loader=collections_loader,
+                source=source_entry or "crawl_worker",
+            )
+        finally:
+            heartbeat.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat
         account_id = result.get("account_id")
         raw_document = self.raw_store.get_by_account_id(account_id) if account_id else None
         record_profile = {}
@@ -94,8 +152,18 @@ class CrawlWorker:
             "missing_rate": missing_rate,
             "missing_keys": missing_keys,
         }
-        retryable = bool(result.get("failures"))
-        if result.get("collection_status") == "failed":
-            self.task_store.mark_failed(task_id, error=str(result.get("failures")), retryable=retryable)
+        has_failures = bool(result.get("failures"))
+        retryable = bool(result.get("retryable"))
+        if has_failures:
+            marked = self.task_store.mark_failed(
+                task_id,
+                worker_id=self.config.worker_id,
+                error=str(result.get("failures")),
+                retryable=retryable,
+            )
+            if not marked:
+                logger.warning("Failed to mark task %s as failed after collection", task_id)
         else:
-            self.task_store.mark_success(task_id, meta=meta)
+            marked = self.task_store.mark_success(task_id, worker_id=self.config.worker_id, meta=meta)
+            if not marked:
+                logger.warning("Failed to mark task %s as success", task_id)

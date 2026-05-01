@@ -41,14 +41,15 @@ class CrawlScheduler:
             url = profile.get("profile_url") or item.get("account_url") or ""
             if not url:
                 continue
-            self.task_store.enqueue_url(
+            enqueue_result = self.task_store.enqueue_url(
                 url=url,
                 task_type="user_profile",
                 payload={"account_id": item.get("account_id", ""), "source_entry": "explore"},
                 source_entry="explore",
                 priority=1,
             )
-            inserted += 1
+            if enqueue_result.get("inserted"):
+                inserted += 1
         logger.info(f"Seeded from explore: {inserted}")
         return inserted
 
@@ -59,14 +60,14 @@ class CrawlScheduler:
         accounts = await self.scraper.collect_accounts_from_search(search_url=search_url, limit=limit)
         inserted = 0
         for url in accounts:
-            self.task_store.enqueue_url(
+            enqueue_result = self.task_store.enqueue_url(
                 url=url,
                 task_type="user_profile",
                 payload={"account_id": "", "source_entry": f"search:{keyword}"},
                 source_entry=f"search:{keyword}",
                 priority=0,
             )
-            inserted += 1
+            if enqueue_result.get("inserted"):
+                inserted += 1
         logger.info(f"Seeded from search '{keyword}': {inserted}")
         return inserted
-

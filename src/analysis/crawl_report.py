@@ -1,7 +1,9 @@
 import json
+import logging
+import os
 import random
 from collections import Counter
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from pymongo import MongoClient
 
@@ -10,49 +12,79 @@ from src.crawler.user_record import build_user_record, calculate_missing_rate
 from src.storage.crawl_task_store import CrawlTaskStore
 
 
+logger = logging.getLogger(__name__)
+
+
 def _load_raw_store():
     client = MongoClient(settings.mongo_url)
-    return client[settings.mongo_db][settings.mongo_raw_collection]
+    collection = client[settings.mongo_db][settings.mongo_raw_collection]
+    return client, collection
 
 
 def build_report(sample_size: int = 100) -> Dict[str, Any]:
+    errors: List[str] = []
     task_store = CrawlTaskStore()
-    status_counts = task_store.counts_by_status()
+    try:
+        status_counts = task_store.counts_by_status()
+    except Exception as exc:
+        status_counts = {}
+        errors.append(f"task_status_counts_failed: {exc}")
+        logger.warning("Failed to load task status counts: %s", exc)
 
-    raw_collection = _load_raw_store()
-    total_raw = raw_collection.count_documents({})
-
-    tasks_collection = task_store.collection
-    finished = list(tasks_collection.find({"status": {"$in": ["success", "dead", "retry", "failed"]}}, {"started_at": 1, "finished_at": 1, "status": 1}))
-    durations = []
-    for task in finished:
-        started_at = task.get("started_at")
-        finished_at = task.get("finished_at")
-        if started_at and finished_at:
-            durations.append((finished_at - started_at).total_seconds())
-    avg_seconds_per_user = round(sum(durations) / len(durations), 2) if durations else None
-    users_per_hour = round(3600 / avg_seconds_per_user, 2) if avg_seconds_per_user and avg_seconds_per_user > 0 else None
-
+    total_raw = 0
+    avg_seconds_per_user = None
+    users_per_hour = None
     missing_rates: List[float] = []
     missing_key_counter: Counter = Counter()
     sample_records: List[Dict[str, Any]] = []
 
-    if total_raw > 0:
-        sample_n = min(int(sample_size), int(total_raw))
-        sample_skip = max(int(total_raw) - sample_n, 0)
-        docs = list(raw_collection.find({}, limit=sample_n, skip=random.randint(0, sample_skip)))
-        for doc in docs:
-            raw_data = doc.get("raw_data", {}) or {}
-            profile = raw_data.get("profile", {}) or {}
-            collections = raw_data.get("collections", {}) or {"folders": [], "items": []}
-            record = build_user_record(profile=profile, collections=collections, source_entry=str(doc.get("source") or ""))
-            rate, missing_keys = calculate_missing_rate(record)
-            missing_rates.append(rate)
-            missing_key_counter.update(missing_keys)
-            record["missing_rate"] = rate
-            record["missing_keys"] = missing_keys
-            record["account_id"] = doc.get("account_id")
-            sample_records.append(record)
+    raw_client = None
+    try:
+        raw_client, raw_collection = _load_raw_store()
+        total_raw = raw_collection.count_documents({})
+
+        tasks_collection = task_store.collection
+        finished = list(
+            tasks_collection.find(
+                {"status": {"$in": ["success", "dead", "retry", "failed"]}},
+                {"started_at": 1, "finished_at": 1, "status": 1},
+            )
+        )
+        durations = []
+        for task in finished:
+            started_at = task.get("started_at")
+            finished_at = task.get("finished_at")
+            if started_at and finished_at:
+                durations.append((finished_at - started_at).total_seconds())
+        avg_seconds_per_user = round(sum(durations) / len(durations), 2) if durations else None
+        users_per_hour = round(3600 / avg_seconds_per_user, 2) if avg_seconds_per_user and avg_seconds_per_user > 0 else None
+
+        if total_raw > 0:
+            sample_n = min(int(sample_size), int(total_raw))
+            sample_skip = max(int(total_raw) - sample_n, 0)
+            docs = list(raw_collection.find({}, limit=sample_n, skip=random.randint(0, sample_skip)))
+            for doc in docs:
+                raw_data = doc.get("raw_data", {}) or {}
+                profile = raw_data.get("profile", {}) or {}
+                collections = raw_data.get("collections", {}) or {"folders": [], "items": []}
+                record = build_user_record(
+                    profile=profile,
+                    collections=collections,
+                    source_entry=str(doc.get("source") or ""),
+                )
+                rate, missing_keys = calculate_missing_rate(record)
+                missing_rates.append(rate)
+                missing_key_counter.update(missing_keys)
+                record["missing_rate"] = rate
+                record["missing_keys"] = missing_keys
+                record["account_id"] = doc.get("account_id")
+                sample_records.append(record)
+    except Exception as exc:
+        errors.append(f"raw_report_failed: {exc}")
+        logger.warning("Failed to build raw crawl report: %s", exc)
+    finally:
+        if raw_client is not None:
+            raw_client.close()
 
     avg_missing = round(sum(missing_rates) / len(missing_rates), 4) if missing_rates else None
     return {
@@ -64,11 +96,13 @@ def build_report(sample_size: int = 100) -> Dict[str, Any]:
         "sample_avg_missing_rate": avg_missing,
         "sample_missing_key_top": missing_key_counter.most_common(20),
         "sample_records": sample_records,
+        "errors": errors,
     }
 
 
 def write_report(path: str = "reports/crawl_report.json", sample_size: int = 100):
     report = build_report(sample_size=sample_size)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 

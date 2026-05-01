@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from src.models.account_raw import CollectionErrorCode, CollectionStatus
+from src.crawler.errors import CrawlError, LoginRequiredError
 from src.storage.mongo_store import MongoRawStore
 
 
@@ -97,6 +98,15 @@ class AccountCollector:
         retry_count += collections_retry
         if collections_failure:
             failures.append(collections_failure)
+        elif isinstance(collections_payload, dict) and collections_payload.get("status") == "blocked":
+            collections_failure = {
+                "dimension": "collections",
+                "error_code": CollectionErrorCode.LOGIN_REQUIRED.value,
+                "error_message": "login blocked: collections",
+                "retryable": False,
+            }
+            failures.append(collections_failure)
+            collections_payload = None
         bundle["collections"] = collections_payload or {"folders": [], "items": []}
         bundle["collection_log"].append(
             {"dimension": "collections", "status": "success" if not collections_failure else "failed"}
@@ -109,12 +119,13 @@ class AccountCollector:
             status = CollectionStatus.PARTIAL.value
 
         primary_failure = failures[0] if failures else {}
+        retryable = any(bool(item.get("retryable", True)) for item in failures)
         account_id_written = self.raw_store.upsert_profile_bundle(
             bundle=bundle,
             collection_status=status,
             error_code=primary_failure.get("error_code"),
             error_message=primary_failure.get("error_message"),
-            retryable=bool(failures),
+            retryable=retryable,
             retry_count=retry_count,
             max_retries=self.max_retries,
             source=source,
@@ -124,6 +135,7 @@ class AccountCollector:
             "collection_status": status,
             "failures": failures,
             "retry_count": retry_count,
+            "retryable": retryable,
         }
 
     async def _with_retry(
@@ -139,6 +151,11 @@ class AccountCollector:
                 return payload, None, retries
             except Exception as exc:
                 last_error = exc
+                # 登录拦截类错误通常重试无意义，直接终止重试。
+                if isinstance(exc, CrawlError) and not exc.retryable:
+                    break
+                if isinstance(exc, LoginRequiredError):
+                    break
                 if attempt >= self.max_retries:
                     break
                 retries += 1
@@ -147,6 +164,7 @@ class AccountCollector:
             "dimension": dimension,
             "error_code": self._classify_error(last_error),
             "error_message": str(last_error) if last_error else "unknown error",
+            "retryable": bool(getattr(last_error, "retryable", True)) if last_error else True,
         }
         return None, failure, retries
 
@@ -161,6 +179,8 @@ class AccountCollector:
     def _classify_error(self, error: Optional[Exception]) -> str:
         if not error:
             return CollectionErrorCode.UNKNOWN.value
+        if isinstance(error, CrawlError):
+            return str(error.error_code or CollectionErrorCode.UNKNOWN.value)
         text = str(error).lower()
         if "rate" in text or "429" in text:
             return CollectionErrorCode.RATE_LIMITED.value

@@ -11,12 +11,15 @@ from src.crawler.user_record import build_user_record, calculate_missing_rate, f
 
 def _iter_raw_documents(limit: Optional[int] = None) -> Iterable[Dict[str, Any]]:
     client = MongoClient(settings.mongo_url)
-    collection = client[settings.mongo_db][settings.mongo_raw_collection]
-    cursor = collection.find({}, sort=[("_id", 1)])
-    if limit is not None:
-        cursor = cursor.limit(int(limit))
-    for doc in cursor:
-        yield doc
+    try:
+        collection = client[settings.mongo_db][settings.mongo_raw_collection]
+        cursor = collection.find({}, sort=[("_id", 1)])
+        if limit is not None:
+            cursor = cursor.limit(int(limit))
+        for doc in cursor:
+            yield doc
+    finally:
+        client.close()
 
 
 def export_jsonl(output_path: str, limit: Optional[int] = None):
@@ -35,20 +38,18 @@ def export_jsonl(output_path: str, limit: Optional[int] = None):
 
 def export_csv(output_path: str, limit: Optional[int] = None):
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    rows = []
-    for doc in _iter_raw_documents(limit=limit):
-        raw_data = doc.get("raw_data", {}) or {}
-        profile = raw_data.get("profile", {}) or {}
-        collections = raw_data.get("collections", {}) or {"folders": [], "items": []}
-        record = build_user_record(profile=profile, collections=collections, source_entry=str(doc.get("source") or ""))
-        rows.append(flatten_for_csv(record))
-    if not rows:
-        return
-    fieldnames = list(rows[0].keys())
     with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+        writer: Optional[csv.DictWriter] = None
+        for doc in _iter_raw_documents(limit=limit):
+            raw_data = doc.get("raw_data", {}) or {}
+            profile = raw_data.get("profile", {}) or {}
+            collections = raw_data.get("collections", {}) or {"folders": [], "items": []}
+            record = build_user_record(profile=profile, collections=collections, source_entry=str(doc.get("source") or ""))
+            row = flatten_for_csv(record)
+            if writer is None:
+                writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+                writer.writeheader()
+            writer.writerow(row)
 
 
 if __name__ == "__main__":

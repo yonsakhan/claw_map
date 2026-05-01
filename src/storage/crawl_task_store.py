@@ -27,7 +27,8 @@ class CrawlTaskStore:
         payload: Optional[Dict[str, Any]] = None,
         priority: int = 0,
         source_entry: Optional[str] = None,
-    ) -> str:
+        force: bool = False,
+    ) -> Dict[str, Any]:
         task_id = str(uuid4())
         document = {
             "task_id": task_id,
@@ -45,12 +46,19 @@ class CrawlTaskStore:
             "created_at": _utc_now(),
             "updated_at": _utc_now(),
         }
-        self.collection.update_one(
+        result = self.collection.update_one(
             {"url": document["url"]},
             {"$setOnInsert": document},
             upsert=True,
         )
-        return task_id
+        if force:
+            self.reset_task(url)
+        current = self.collection.find_one({"url": document["url"]}, {"task_id": 1, "status": 1}) or {}
+        return {
+            "task_id": str(current.get("task_id") or task_id),
+            "inserted": bool(result.upserted_id),
+            "status": str(current.get("status") or document["status"]),
+        }
 
     def lease_next(
         self,
@@ -79,9 +87,35 @@ class CrawlTaskStore:
             return_document=ReturnDocument.AFTER,
         )
 
-    def mark_success(self, task_id: str, meta: Optional[Dict[str, Any]] = None):
-        self.collection.update_one(
-            {"task_id": str(task_id)},
+    def refresh_lease(self, task_id: str, worker_id: str, lease_seconds: int = 180) -> bool:
+        now = _utc_now()
+        locked_until = now + timedelta(seconds=int(lease_seconds))
+        result = self.collection.update_one(
+            {
+                "task_id": str(task_id),
+                "status": "processing",
+                "locked_by": str(worker_id),
+                "locked_until": {"$gt": now},
+            },
+            {
+                "$set": {
+                    "locked_until": locked_until,
+                    "heartbeat_at": now,
+                    "updated_at": now,
+                }
+            },
+        )
+        return result.modified_count == 1
+
+    def mark_success(self, task_id: str, worker_id: str, meta: Optional[Dict[str, Any]] = None) -> bool:
+        now = _utc_now()
+        result = self.collection.update_one(
+            {
+                "task_id": str(task_id),
+                "status": "processing",
+                "locked_by": str(worker_id),
+                "locked_until": {"$gt": now},
+            },
             {
                 "$set": {
                     "status": "success",
@@ -89,37 +123,70 @@ class CrawlTaskStore:
                     "locked_until": None,
                     "last_error": None,
                     "meta": meta or {},
-                    "finished_at": _utc_now(),
-                    "updated_at": _utc_now(),
+                    "finished_at": now,
+                    "updated_at": now,
                 }
             },
         )
+        return result.modified_count == 1
 
     def mark_failed(
         self,
         task_id: str,
+        worker_id: str,
         error: str,
         retryable: bool = True,
-    ):
-        task = self.collection.find_one({"task_id": str(task_id)}) or {}
+    ) -> bool:
+        now = _utc_now()
+        task = self.collection.find_one(
+            {
+                "task_id": str(task_id),
+                "status": "processing",
+                "locked_by": str(worker_id),
+                "locked_until": {"$gt": now},
+            }
+        ) or {}
+        if not task:
+            return False
         retry_count = int(task.get("retry_count", 0)) + 1
         max_retries = int(task.get("max_retries", 3))
         status = "retry" if retryable and retry_count <= max_retries else "dead"
-        self.collection.update_one(
-            {"task_id": str(task_id)},
+        result = self.collection.update_one(
+            {
+                "task_id": str(task_id),
+                "status": "processing",
+                "locked_by": str(worker_id),
+                "locked_until": {"$gt": now},
+            },
             {
                 "$set": {
                     "status": status,
                     "locked_by": None,
                     "locked_until": None,
                     "last_error": str(error)[:800],
-                    "finished_at": _utc_now(),
-                    "updated_at": _utc_now(),
+                    "finished_at": now,
+                    "updated_at": now,
                 },
-                "$setOnInsert": {"created_at": _utc_now()},
                 "$inc": {"retry_count": 1},
             },
         )
+        return result.modified_count == 1
+
+    def reset_task(self, url: str) -> bool:
+        result = self.collection.update_one(
+            {"url": str(url), "status": {"$in": ["dead", "success", "failed"]}},
+            {
+                "$set": {
+                    "status": "pending",
+                    "retry_count": 0,
+                    "locked_by": None,
+                    "locked_until": None,
+                    "last_error": None,
+                    "updated_at": _utc_now(),
+                },
+            },
+        )
+        return result.modified_count == 1
 
     def counts_by_status(self) -> Dict[str, int]:
         pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}]
